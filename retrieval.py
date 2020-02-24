@@ -7,6 +7,7 @@ import pandas as pd
 class Retrieval:
 
     documents = []
+    term_rarity = {}
 
     def __init__(self):
         self.initialize_documents('../bbcsport/docs/')
@@ -17,7 +18,7 @@ class Retrieval:
         # print(self.query_br(postings, query))
 
     def initialize_documents(self, path):
-        # Store documents in array to reduce number of read
+        # Store documents in array to reduce number of read commands
         N = len(sorted(os.listdir(path)))
         for docID in range(N):
             s = self.read_file(path,docID).lower()
@@ -84,11 +85,15 @@ class Retrieval:
 
     def calculate_doc_freq(self, token, N, ):
         #calculate document frequency
-        df = 0
-        for doc in self.documents:
-            if token in doc:
-                df += 1
-        idf = math.log(N/df, 10)
+        if token in self.term_rarity:
+            return self.term_rarity[token]
+        else:
+            df = 0
+            for doc in self.documents:
+                if token in doc:
+                    df += 1
+            idf = math.log(N/df, 10)
+            self.term_rarity.setdefault(token,idf)
         return idf
 
     def l2normalize(self, docVectors):
