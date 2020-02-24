@@ -76,7 +76,7 @@ class Retrieval:
             # create term document matrix
             items = row_data.values()
             df = pd.DataFrame(data=[items], index=[row_name], columns=list(row_data.keys()))
-            postings_matrix.append(df)
+            postings_matrix = postings_matrix.append(df, ignore_index=True)
         return postings_matrix
 
     def calculate_term_freq(self, token, string):
@@ -84,15 +84,17 @@ class Retrieval:
         return string.count(token)
 
     def calculate_doc_freq(self, token, N, ):
-        #calculate document frequency
+        # Check if token idf has already been calculated before
         if token in self.term_rarity:
             return self.term_rarity[token]
         else:
+            # calculate document frequency
             df = 0
             for doc in self.documents:
                 if token in doc:
                     df += 1
             idf = math.log(N/df, 10)
+            # Store idf score to speed up process for high frequency terms
             self.term_rarity.setdefault(token,idf)
         return idf
 
