@@ -17,6 +17,7 @@ class Retrieval:
         # print(self.query_br(postings, query))
 
     def initialize_documents(self, path):
+        # Store documents in array to reduce number of read
         N = len(sorted(os.listdir(path)))
         for docID in range(N):
             s = self.read_file(path,docID).lower()
@@ -39,6 +40,7 @@ class Retrieval:
         return list(dict.fromkeys(tokens))
 
     def index_text_files_br(self, path):
+        # Index function for boolean retrieval
         N = len(sorted(os.listdir(path)))
         postings = {}
         for docID in range(N):
@@ -49,6 +51,7 @@ class Retrieval:
         return postings
 
     def query_br(self, postings, query):
+        # Query function for boolean retrieval
         tokens = self.tokenize(query)
         result = None
         for t in tokens:
@@ -56,6 +59,7 @@ class Retrieval:
         return result
 
     def index_text_files_rr(self, path):
+        # Index function for ranked retrieval
         N = len(sorted(os.listdir(path)))
         postings_matrix = pd.DataFrame()
         for docID in range(N):
@@ -64,11 +68,10 @@ class Retrieval:
             row_data = {}
             row_name = ''
             for t in tokens:
-                # calculate the tf*idf
-                s = s.lower()
-                weight = self.calculate_term_freq(t, s) * self.calculate_doc_freq(t, N)
+                # calculate the relevancy score using tf*idf
+                score = self.calculate_term_freq(t, s.lower()) * self.calculate_doc_freq(t, N)
                 row_name = docID
-                row_data.setdefault(t, weight)
+                row_data.setdefault(t, score)
             # create term document matrix
             items = row_data.values()
             df = pd.DataFrame(data=[items], index=[row_name], columns=list(row_data.keys()))
