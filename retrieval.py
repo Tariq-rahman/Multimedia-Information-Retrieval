@@ -1,16 +1,28 @@
 import re
 import os
 import math
+import numpy as np
+import pandas as pd
 
 class Retrieval:
 
-    def __init__(self):
-        postings = self.indexTextFiles_BR('../bbcsport/docs/')
-        print('Please enter a query')
-        query = input()
-        print(self.query_BR(postings, query))
+    documents = []
 
-    def readfile(self, path, docid):
+    def __init__(self):
+        self.initialize_documents('../bbcsport/docs/')
+        postings = self.index_text_files_rr('../bbcsport/docs/')
+        print(postings)
+        # print('Please enter a query')
+        # query = input()
+        # print(self.query_br(postings, query))
+
+    def initialize_documents(self, path):
+        N = len(sorted(os.listdir(path)))
+        for docID in range(N):
+            s = self.read_file(path,docID).lower()
+            self.documents.append(s)
+
+    def read_file(self, path, docid):
         files = sorted(os.listdir(path))
         f = open(os.path.join(path, files[docid]), 'r', encoding='latin-1')
         s = f.read()
@@ -23,59 +35,73 @@ class Retrieval:
         tokens = re.split(DELIM, string.lower())
         if '' in tokens:
             tokens.remove('')
-        return tokens
+        #remove duplicates
+        return list(dict.fromkeys(tokens))
 
-    def indexTextFiles_BR(self, path):
+    def index_text_files_br(self, path):
         N = len(sorted(os.listdir(path)))
         postings = {}
         for docID in range(N):
-            s = self.readfile(path, docID)
+            s = self.read_file(path, docID)
             tokens = self.tokenize(s)
             for t in tokens:
                 postings.setdefault(t, set()).add(docID)
         return postings
 
-    def query_BR(self, postings, query):
+    def query_br(self, postings, query):
         tokens = self.tokenize(query)
         result = None
         for t in tokens:
             result = postings[t] if result is None else result & postings[t]
         return result
 
-    def indexTextFiles_RR(self, path):
+    def index_text_files_rr(self, path):
         N = len(sorted(os.listdir(path)))
-        postings = {}
+        postings_matrix = pd.DataFrame()
         for docID in range(N):
-            s = self.readfile(path, docID)
+            s = self.documents[docID]
             tokens = self.tokenize(s)
+            row_data = {}
+            row_name = ''
             for t in tokens:
                 # calculate the tf*idf
-                weight = self.calculateTF(t, docID, path) * self.calculateDF(t, N, path)
-                #Create an array to hold docid and it's weight
-                docAndWeight = [docID, weight]
-                postings.setdefault(t, set().add(docAndWeight))
-        return postings
+                s = s.lower()
+                weight = self.calculate_term_freq(t, s) * self.calculate_doc_freq(t, N)
+                row_name = docID
+                row_data.setdefault(t, weight)
+            # create term document matrix
+            items = row_data.values()
+            df = pd.DataFrame(data=[items], index=[row_name], columns=list(row_data.keys()))
+            postings_matrix.append(df)
+        return postings_matrix
 
-    def calculateTF(self, token, docID, path):
+    def calculate_term_freq(self, token, string):
         # calculate term frequency
-        s = self.readfile(path, docID)
-        return s.count(token)
+        return string.count(token)
 
-    def calculateDF(self, token, N, path):
+    def calculate_doc_freq(self, token, N, ):
         #calculate document frequency
         df = 0
-        for docID in range(N):
-            s = self.readfile(path, docID)
-            if s.__contains__(token):
+        for doc in self.documents:
+            if token in doc:
                 df += 1
         idf = math.log(N/df, 10)
         return idf
 
-    def l2normalize(self, postings):
+    def l2normalize(self, docVectors):
         # find l2norm
+        l2n = 0
+        for v in docVectors:
+            l2n += v**2
+        l2n = math.sqrt(l2n)
+        result = []
+        # normalize lengths of vectors
+        for v in docVectors:
+            result.append(v/l2n)
+        return result
 
 
-    def query_RR(self):
+    #   def query_RR(self):
 
 
 
