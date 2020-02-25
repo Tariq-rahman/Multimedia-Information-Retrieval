@@ -4,6 +4,8 @@ import math
 import numpy as np
 import pandas as pd
 import time
+import operator
+from collections import OrderedDict
 
 class Retrieval:
     # list of all documents
@@ -18,9 +20,7 @@ class Retrieval:
         end = time.time()
         print(postings)
         print("time taken: " + str(end-start))
-        # print('Please enter a query')
-        # query = input()
-        # print(self.query_br(postings, query))
+        #print(self.query_rr('england mccall', postings))
 
     def initialize_documents(self, path):
         """
@@ -79,7 +79,7 @@ class Retrieval:
                 postings.setdefault(t, set()).add(docID)
         return postings
 
-    def query_br(self, postings, query):
+    def query_br(self, query, postings):
         """
         Query function for boolean retrieval
         Uses the postings list to get all sets of docs that contain the query term
@@ -94,12 +94,20 @@ class Retrieval:
             result = postings[t] if result is None else result & postings[t]
         return result
 
-    def query_RR(self, query, postings_matrix):
+    def query_rr(self, query, postings, max_results = 10):
         tokens = self.tokenize(query)
-        # calculate tfidf for query
-        result = None
+        # calculate tf_idf for query
+        tf_idf = []
         for t in tokens:
-            result = postings_matrix.loc[t] if result is None else result & postings_matrix.loc[t]
+            try:
+                score = self.term_rarity[t]
+            except:
+                score = 0
+            tf_idf.append(score)
+        cosine_scores = {}
+        for key, value in postings.items():
+            cosine_scores.setdefault(key, self.cosine(tf_idf, value))
+        result = sorted(cosine_scores.items(), key=operator.itemgetter(1))[:max_results]
         return result
 
     def index_text_files_rr(self, path):
@@ -111,22 +119,25 @@ class Retrieval:
         N = len(sorted(os.listdir(path)))
         # Create empty dataframe
         postings_matrix = pd.DataFrame()
+        #postings = {}
         for docID in range(N):
             s = self.documents[docID]
             tokens = self.tokenize(s)
             row_data = {}
             for t in tokens:
                 # calculate the relevancy score using tf*idf
-                score = self.calculate_term_freq(t, s) * self.calculate_doc_freq(t, N)
+                tf_idf = self.calculate_term_freq(t, s) * self.calculate_doc_freq(t, N)
                 # Create a row of doc->score data to be inserted in matrix
-                row_data.setdefault(t, score)
+                row_data.setdefault(t, tf_idf)
             # Normalize the document scores
-            items = self.l2normalize(row_data.values())
-            df = pd.DataFrame(data=[items], index=[docID], columns=list(row_data.keys()))
+            normalized_values = self.l2normalize(row_data.values())
+            #postings.setdefault(docID, normalized_values)
+            df = pd.DataFrame(data=[normalized_values], index=[docID], columns=list(row_data.keys()))
             # append to term document matrix
             postings_matrix = postings_matrix.append(df, ignore_index=True)
         # Transpose matrix to make documents as columns and terms as rows
         return postings_matrix.transpose()
+        #return postings
 
     @staticmethod
     def calculate_term_freq(token, doc):
