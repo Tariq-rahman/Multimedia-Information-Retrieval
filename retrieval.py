@@ -2,10 +2,8 @@ import re
 import os
 import math
 import numpy as np
-import pandas as pd
 import time
 import operator
-from collections import OrderedDict
 
 class Retrieval:
     # list of all documents
@@ -118,8 +116,7 @@ class Retrieval:
         """
         N = len(sorted(os.listdir(path)))
         # Create empty dataframe
-        postings_matrix = pd.DataFrame()
-        #postings = {}
+        postings = {}
         for docID in range(N):
             s = self.documents[docID]
             tokens = self.tokenize(s)
@@ -131,13 +128,8 @@ class Retrieval:
                 row_data.setdefault(t, tf_idf)
             # Normalize the document scores
             normalized_values = self.l2normalize(row_data.values())
-            #postings.setdefault(docID, normalized_values)
-            df = pd.DataFrame(data=[normalized_values], index=[docID], columns=list(row_data.keys()))
-            # append to term document matrix
-            postings_matrix = postings_matrix.append(df, ignore_index=True)
-        # Transpose matrix to make documents as columns and terms as rows
-        return postings_matrix.transpose()
-        #return postings
+            postings.setdefault(docID, normalized_values)
+        return postings
 
     @staticmethod
     def calculate_term_freq(token, doc):
