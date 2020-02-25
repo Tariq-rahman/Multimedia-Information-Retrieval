@@ -10,14 +10,14 @@ class Retrieval:
     documents = []
     # dict containing doc frequency scores for all terms
     term_rarity = {}
-
+    PATH_TO_DOCS = "../bbcsport/docs/"
     def __init__(self):
-        self.initialize_documents('../bbcsport/docs/')
+        self.initialize_documents(self.PATH_TO_DOCS)
         start = time.time()
-        postings = self.index_text_files_rr('../bbcsport/docs/')
+        postings = self.index_text_files_rr(self.PATH_TO_DOCS)
         end = time.time()
         print(postings)
-        print("time taken: " + end-start)
+        print("time taken: " + str(end-start))
         # print('Please enter a query')
         # query = input()
         # print(self.query_br(postings, query))
@@ -31,7 +31,7 @@ class Retrieval:
         # Store documents in array to reduce number of read commands
         N = len(sorted(os.listdir(path)))
         for docID in range(N):
-            s = self.read_file(path,docID).lower()
+            s = self.read_file(path,docID)
             self.documents.append(s)
 
     @staticmethod
@@ -46,14 +46,14 @@ class Retrieval:
         f = open(os.path.join(path, files[docid]), 'r', encoding='latin-1')
         s = f.read()
         f.close()
-        return s
+        return s.lower()
 
     @staticmethod
     def tokenize(string):
         """
         Tokenizes the input string by normalising and removing duplicates
         :param string:
-        :return:
+        :return tokens: a list of tokens
         """
         DELIM = '[ \n\t0123456789;:.,/\(\)\"\'-]+'
         # Normalize by removing capitals and removing commas an delimiters
@@ -81,16 +81,25 @@ class Retrieval:
 
     def query_br(self, postings, query):
         """
-
+        Query function for boolean retrieval
+        Uses the postings list to get all sets of docs that contain the query term
+        then merges the doc lists
         :param postings:
         :param query:
         :return:
         """
-        # Query function for boolean retrieval
         tokens = self.tokenize(query)
         result = None
         for t in tokens:
             result = postings[t] if result is None else result & postings[t]
+        return result
+
+    def query_RR(self, query, postings_matrix):
+        tokens = self.tokenize(query)
+        # calculate tfidf for query
+        result = None
+        for t in tokens:
+            result = postings_matrix.loc[t] if result is None else result & postings_matrix.loc[t]
         return result
 
     def index_text_files_rr(self, path):
@@ -106,16 +115,14 @@ class Retrieval:
             s = self.documents[docID]
             tokens = self.tokenize(s)
             row_data = {}
-            col_name = ''
             for t in tokens:
                 # calculate the relevancy score using tf*idf
-                score = self.calculate_term_freq(t, s.lower()) * self.calculate_doc_freq(t, N)
-                col_name = docID
+                score = self.calculate_term_freq(t, s) * self.calculate_doc_freq(t, N)
                 # Create a row of doc->score data to be inserted in matrix
                 row_data.setdefault(t, score)
             # Normalize the document scores
             items = self.l2normalize(row_data.values())
-            df = pd.DataFrame(data=[items], index=[col_name], columns=list(row_data.keys()))
+            df = pd.DataFrame(data=[items], index=[docID], columns=list(row_data.keys()))
             # append to term document matrix
             postings_matrix = postings_matrix.append(df, ignore_index=True)
         # Transpose matrix to make documents as columns and terms as rows
@@ -130,6 +137,19 @@ class Retrieval:
         :return: (int) term frequency
         """
         return doc.count(token)
+
+    def cosine(self, a, b):
+        """
+        Calculates the cosine of the angle between two given vectors, a and b
+        :param a: Vector a
+        :param b: Vector b
+        """
+        # calculate dot product
+        dot_product = np.dot(a, b)
+        # calculate magnitude of a and b
+        a_magnitude = self.calculate_vector_magnitude(a)
+        b_magnitude = self.calculate_vector_magnitude(b)
+        return dot_product/(a_magnitude * b_magnitude)
 
     def calculate_doc_freq(self, token, N, ):
         """
@@ -154,26 +174,27 @@ class Retrieval:
             self.term_rarity.setdefault(token,idf)
         return idf
 
-    @staticmethod
-    def l2normalize(docVectors):
+    def l2normalize(self, docVectors):
         """
         Uses the l2norm to normalize the given vectors by dividing each vector by the l2Norm
         :param docVectors: Document vector to normalize
         :return: the normalized vector
         """
         # find l2norm
-        l2n = 0
-        for v in docVectors:
-            l2n += v**2
-        l2n = math.sqrt(l2n)
+        magnitude = self.calculate_vector_magnitude(docVectors)
         result = []
         # normalize lengths of vectors
         for v in docVectors:
-            result.append(v/l2n)
+            result.append(v/magnitude)
         return result
 
-
-    #   def query_RR(self):
+    @staticmethod
+    def calculate_vector_magnitude(vector):
+        magnitude = 0
+        for v in vector:
+            magnitude += v**2
+        magnitude = math.sqrt(magnitude)
+        return magnitude
 
 
 
