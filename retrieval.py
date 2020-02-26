@@ -5,12 +5,13 @@ import numpy as np
 import operator
 from collections import OrderedDict
 
+
 class Retrieval:
     # list of all documents
     documents = []
     # dict containing doc frequency scores for all terms
     document_frequency = {}
-    PATH_TO_DOCS = "../bbcsport/docs/"
+    PATH_TO_DOCS = "bbcsport/docs/"
 
     def __init__(self):
         self.initialize_documents(self.PATH_TO_DOCS)
@@ -23,10 +24,9 @@ class Retrieval:
         and increase process speed
         :param path: The path to the document
         """
-        # Store documents in array to reduce number of read commands
         N = len(sorted(os.listdir(path)))
         for docID in range(N):
-            s = self.read_file(path,docID)
+            s = self.read_file(path, docID)
             self.documents.append(s)
 
     @staticmethod
@@ -90,6 +90,13 @@ class Retrieval:
         return result
 
     def query_rr(self, query, postings, max_results=10):
+        """
+
+        :param query:
+        :param postings:
+        :param max_results:
+        :return:
+        """
         tokens = self.tokenize(query)
         # calculate tf_idf for query
         tf_idf = dict.fromkeys(self.document_frequency, 0)
@@ -109,7 +116,7 @@ class Retrieval:
         :return postings_matrix: a term document matrix with contents being the tfidf score
         """
         N = len(sorted(os.listdir(path)))
-        self.fill_doc_freq(N)
+        self.initialize_doc_freq(N)
         postings = {}
         for docID in range(N):
             s = self.documents[docID]
@@ -120,7 +127,7 @@ class Retrieval:
                 tf_idf = self.calculate_term_freq(t, s) * self.document_frequency[t]
                 # Create a row of doc->score data to be inserted in matrix
                 row_data[t] = tf_idf
-                #row_data.setdefault(t, tf_idf)
+                # row_data.setdefault(t, tf_idf)
             # Normalize the document scores
             normalized_values = self.l2normalize(row_data)
             postings.setdefault(docID, normalized_values)
@@ -147,7 +154,7 @@ class Retrieval:
         # calculate magnitude of a and b
         a_magnitude = self.calculate_vector_norm(a)
         b_magnitude = self.calculate_vector_norm(b)
-        return dot_product/(a_magnitude * b_magnitude)
+        return dot_product / (a_magnitude * b_magnitude)
 
     def calculate_doc_freq(self, token, N, ):
         """
@@ -167,7 +174,7 @@ class Retrieval:
             for doc in self.documents:
                 if token in doc:
                     df += 1
-            idf = math.log(N/df, 10)
+            idf = math.log(N / df, 10)
             # Store idf score to speed up process for high frequency terms
             self.document_frequency.setdefault(token, idf)
         return idf
@@ -182,24 +189,23 @@ class Retrieval:
         norm = self.calculate_vector_norm(docVectors)
         # normalize lengths of vectors
         for key, value in docVectors.items():
-            docVectors[key] = value/norm
+            docVectors[key] = value / norm
         return docVectors
 
     @staticmethod
     def calculate_vector_norm(vector):
         n = 0
         for key, value in vector.items():
-            n += value**2
+            n += value ** 2
         norm = math.sqrt(n)
         return norm
 
-    def fill_doc_freq(self, N):
+    def initialize_doc_freq(self, N):
         for docID in range(N):
             s = self.documents[docID]
             tokens = self.tokenize(s)
             for t in tokens:
                 self.calculate_doc_freq(t, N)
-
 
 
 Retrieval()
