@@ -2,7 +2,6 @@ import re
 import os
 import math
 import numpy as np
-import time
 import operator
 from collections import OrderedDict
 
@@ -15,11 +14,7 @@ class Retrieval:
 
     def __init__(self):
         self.initialize_documents(self.PATH_TO_DOCS)
-        start = time.time()
         postings = self.index_text_files_rr(self.PATH_TO_DOCS)
-        end = time.time()
-        print(postings)
-        print("time taken: " + str(end-start))
         print(self.query_rr('england mccall', postings))
 
     def initialize_documents(self, path):
