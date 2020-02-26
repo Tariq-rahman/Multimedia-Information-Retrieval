@@ -121,16 +121,17 @@ class Retrieval:
         for docID in range(N):
             s = self.documents[docID]
             tokens = self.tokenize(s)
+            # Create a template using the keys of the document_frequency dict
+            # This will ensure that all doc vectors have same dimensions
             row_data = dict.fromkeys(self.document_frequency, 0)
             for t in tokens:
                 # calculate the relevancy score using tf*idf
                 tf_idf = self.calculate_term_freq(t, s) * self.document_frequency[t]
-                # Create a row of doc->score data to be inserted in matrix
+                # insert tf_idf score to corresponding terms in dict
                 row_data[t] = tf_idf
-                # row_data.setdefault(t, tf_idf)
-            # Normalize the document scores
-            normalized_values = self.l2normalize(row_data)
-            postings.setdefault(docID, normalized_values)
+                # Normalize the document scores
+            normalized_data = self.l2normalize(row_data)
+            postings.setdefault(docID, normalized_data)
         return postings
 
     @staticmethod
