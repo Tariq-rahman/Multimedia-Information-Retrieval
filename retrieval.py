@@ -4,13 +4,15 @@ import math
 import numpy as np
 import time
 import operator
+from collections import OrderedDict
 
 class Retrieval:
     # list of all documents
     documents = []
     # dict containing doc frequency scores for all terms
-    term_rarity = {}
+    document_frequency = {}
     PATH_TO_DOCS = "../bbcsport/docs/"
+
     def __init__(self):
         self.initialize_documents(self.PATH_TO_DOCS)
         start = time.time()
@@ -18,7 +20,7 @@ class Retrieval:
         end = time.time()
         print(postings)
         print("time taken: " + str(end-start))
-        #print(self.query_rr('england mccall', postings))
+        print(self.query_rr('england mccall', postings))
 
     def initialize_documents(self, path):
         """
@@ -92,21 +94,18 @@ class Retrieval:
             result = postings[t] if result is None else result & postings[t]
         return result
 
-    def query_rr(self, query, postings, max_results = 10):
+    def query_rr(self, query, postings, max_results=10):
         tokens = self.tokenize(query)
         # calculate tf_idf for query
-        tf_idf = []
+        tf_idf = dict.fromkeys(self.document_frequency, 0)
         for t in tokens:
-            try:
-                score = self.term_rarity[t]
-            except:
-                score = 0
-            tf_idf.append(score)
+            tf_idf[t] = self.document_frequency[t]
         cosine_scores = {}
         for key, value in postings.items():
             cosine_scores.setdefault(key, self.cosine(tf_idf, value))
-        result = sorted(cosine_scores.items(), key=operator.itemgetter(1))[:max_results]
-        return result
+        # Sort in descending order to get top results
+        result = OrderedDict(sorted(cosine_scores.items(), key=operator.itemgetter(1), reverse=True)[:max_results])
+        return result.keys()
 
     def index_text_files_rr(self, path):
         """
@@ -115,19 +114,20 @@ class Retrieval:
         :return postings_matrix: a term document matrix with contents being the tfidf score
         """
         N = len(sorted(os.listdir(path)))
-        # Create empty dataframe
+        self.fill_doc_freq(N)
         postings = {}
         for docID in range(N):
             s = self.documents[docID]
             tokens = self.tokenize(s)
-            row_data = {}
+            row_data = dict.fromkeys(self.document_frequency, 0)
             for t in tokens:
                 # calculate the relevancy score using tf*idf
-                tf_idf = self.calculate_term_freq(t, s) * self.calculate_doc_freq(t, N)
+                tf_idf = self.calculate_term_freq(t, s) * self.document_frequency[t]
                 # Create a row of doc->score data to be inserted in matrix
-                row_data.setdefault(t, tf_idf)
+                row_data[t] = tf_idf
+                #row_data.setdefault(t, tf_idf)
             # Normalize the document scores
-            normalized_values = self.l2normalize(row_data.values())
+            normalized_values = self.l2normalize(row_data)
             postings.setdefault(docID, normalized_values)
         return postings
 
@@ -148,10 +148,10 @@ class Retrieval:
         :param b: Vector b
         """
         # calculate dot product
-        dot_product = np.dot(a, b)
+        dot_product = np.dot(list(a.values()), list(b.values()))
         # calculate magnitude of a and b
-        a_magnitude = self.calculate_vector_magnitude(a)
-        b_magnitude = self.calculate_vector_magnitude(b)
+        a_magnitude = self.calculate_vector_norm(a)
+        b_magnitude = self.calculate_vector_norm(b)
         return dot_product/(a_magnitude * b_magnitude)
 
     def calculate_doc_freq(self, token, N, ):
@@ -164,8 +164,8 @@ class Retrieval:
         :return idf: The document frequency score
         """
         # Check if token idf has already been calculated before
-        if token in self.term_rarity:
-            return self.term_rarity[token]
+        if token in self.document_frequency:
+            return self.document_frequency[token]
         else:
             # calculate document frequency
             df = 0
@@ -174,7 +174,7 @@ class Retrieval:
                     df += 1
             idf = math.log(N/df, 10)
             # Store idf score to speed up process for high frequency terms
-            self.term_rarity.setdefault(token,idf)
+            self.document_frequency.setdefault(token, idf)
         return idf
 
     def l2normalize(self, docVectors):
@@ -184,20 +184,26 @@ class Retrieval:
         :return: the normalized vector
         """
         # find l2norm
-        magnitude = self.calculate_vector_magnitude(docVectors)
-        result = []
+        norm = self.calculate_vector_norm(docVectors)
         # normalize lengths of vectors
-        for v in docVectors:
-            result.append(v/magnitude)
-        return result
+        for key, value in docVectors.items():
+            docVectors[key] = value/norm
+        return docVectors
 
     @staticmethod
-    def calculate_vector_magnitude(vector):
-        magnitude = 0
-        for v in vector:
-            magnitude += v**2
-        magnitude = math.sqrt(magnitude)
-        return magnitude
+    def calculate_vector_norm(vector):
+        n = 0
+        for key, value in vector.items():
+            n += value**2
+        norm = math.sqrt(n)
+        return norm
+
+    def fill_doc_freq(self, N):
+        for docID in range(N):
+            s = self.documents[docID]
+            tokens = self.tokenize(s)
+            for t in tokens:
+                self.calculate_doc_freq(t, N)
 
 
 
