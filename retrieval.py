@@ -12,11 +12,14 @@ class Retrieval:
     # dict containing doc frequency scores for all terms
     document_frequency = {}
     PATH_TO_DOCS = "bbcsport/docs/"
+    postings = {}
 
     def __init__(self):
         self.initialize_documents(self.PATH_TO_DOCS)
-        postings = self.index_text_files_rr(self.PATH_TO_DOCS)
-        print(self.query_rr('england mccall', postings))
+        self.initialize_doc_freq(len(self.documents))
+        self.postings = self.index_text_files_rr(self.PATH_TO_DOCS)
+        # Boolean retrieval code below
+        #self.index_text_files_br(self.PATH_TO_DOCS)
 
     def initialize_documents(self, path):
         """
@@ -89,21 +92,22 @@ class Retrieval:
             result = postings[t] if result is None else result & postings[t]
         return result
 
-    def query_rr(self, query, postings, max_results=10):
+    def query_rr(self, query, max_results=10):
         """
-
+        Query function for ranked retrieval
         :param query:
         :param postings:
         :param max_results:
         :return:
         """
         tokens = self.tokenize(query)
-        # calculate tf_idf for query
+        # Create dict with zeros
         tf_idf = dict.fromkeys(self.document_frequency, 0)
         for t in tokens:
+            # insert idf scores for tokens, tf scores not needed as it will be 1
             tf_idf[t] = self.document_frequency[t]
         cosine_scores = {}
-        for key, value in postings.items():
+        for key, value in self.postings.items():
             cosine_scores.setdefault(key, self.cosine(tf_idf, value))
         # Sort in descending order to get top results
         result = OrderedDict(sorted(cosine_scores.items(), key=operator.itemgetter(1), reverse=True)[:max_results])
@@ -116,7 +120,6 @@ class Retrieval:
         :return postings_matrix: a term document matrix with contents being the tfidf score
         """
         N = len(sorted(os.listdir(path)))
-        self.initialize_doc_freq(N)
         postings = {}
         for docID in range(N):
             s = self.documents[docID]
@@ -209,4 +212,5 @@ class Retrieval:
                 self.calculate_doc_freq(t, N)
 
 
-Retrieval()
+retrieval = Retrieval()
+print(retrieval.query_rr('england mccall united'))
